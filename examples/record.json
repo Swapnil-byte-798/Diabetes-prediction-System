@@ -1,0 +1,10 @@
+{
+  "Pregnancies": 2,
+  "Glucose": 110,
+  "BloodPressure": 74,
+  "SkinThickness": 29,
+  "Insulin": 125,
+  "BMI": 32.4,
+  "DiabetesPedigreeFunction": 0.698,
+  "Age": 27
+}

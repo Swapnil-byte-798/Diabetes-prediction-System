@@ -1,0 +1,33 @@
+name: Verify diabetes benchmark
+
+on:
+  push:
+    branches: [main, 'audit/**']
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    strategy:
+      matrix:
+        pandas: ['2.2.3', '3.1.0']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -r requirements-dev.txt
+      - if: matrix.pandas != '3.1.0'
+        run: python -m pip install pandas==${{ matrix.pandas }}
+      - run: python -m pytest -q
+      - name: Train, reload, and score the supplied example
+        run: |
+          python diabetes.py train > holdout.json
+          python diabetes.py predict examples/record.json > example.json
+          cat holdout.json example.json
+      - name: Execute the notebook in a real Python kernel
+        run: jupyter execute --timeout=60 Diabetes.ipynb
