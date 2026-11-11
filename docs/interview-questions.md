@@ -1,154 +1,72 @@
-# Diabetes Prediction System: Interview Questions
+# Diabetes Prediction System interview questions
 
-Updated 29 October 2026. Notebook code reviewed: `f2786e3`. Distinguish the notebook's implementation from audit-only evaluation and proposed repairs.
+Updated 11 November 2026. Practise answers using the numbers and commands from the run.
 
-## 1. Explain the scope
+## Starting the conversation
 
-### What does the project implement?
+### Interviewer. What did you build?
 
-A tabular binary-classification baseline: load the supplied dataset, split rows with stratification, fit a training-only scaler, train a linear SVC and predict an example. It is not a deployed diagnostic application or calibrated risk service.
+I built a Python benchmark that fits a linear support vector classifier to 768 Pima diabetes records. The workflow validates the CSV, runs a stratified evaluation and saves one fitted preprocessing and model artifact. I can score a named JSON record from the command line or walk through the same functions in the notebook.
 
-### Does it run from a fresh checkout?
+### Interviewer. What failed when you first ran it?
 
-Not as supplied. The notebook requests diabetes.csv, but the file is named diabetes.xls and is actually CSV text. With a temporary alias, pandas 3.1 then rejects the drop call's simultaneous columns and axis arguments. The unchanged source completed under pandas 2.2.3.
+The notebook expected a CSV filename while the committed CSV bytes had an XLS extension. Copying it to the expected name exposed a second failure in pandas 3.1. The notebook passed both the column and axis arguments to drop. The repaired loader uses the correct filename and selects columns by name. I added pinned dependencies and verified the workflow on pandas 2.2.3 and 3.1.0.
 
-### What was actually run during the audit?
+### Interviewer. What is a feature and what is a label?
 
-The source cell was executed as ordinary Python, first reproducing the failures and then completing with explicit workarounds. Jupyter kernel sockets were blocked in the workspace, so a notebook-kernel/UI pass was not claimed. Stored output was not treated as new evidence.
+A feature is an input, such as age or BMI. Outcome is the binary label used during training and evaluation. A prediction request sends only the eight features. The input validator rejects an extra Outcome field.
 
-### What is the dataset size and split?
+## Preprocessing and leakage
 
-There are 768 rows and eight inputs, with 500 class-0 and 268 class-1 labels. The fixed stratified 80/20 split gives 614 training and 154 test records. The test partition has 100 negatives and 54 positives.
+### Interviewer. Why can zero mean different things?
 
-## 2. Preprocessing and leakage
+A pregnancy count of zero is valid. The dataset documents zero as a missing-measurement code in five other columns, including glucose and insulin. I convert those codes into missing values and fill them with training-set medians.
 
-### Why standardise before fitting the SVM?
+### Interviewer. How did you verify training-only preprocessing?
 
-Feature scales affect the geometry of the separating boundary. The notebook places features on a training-derived standardised scale. This does not guarantee a better model or repair missing measurements, but it avoids letting raw numerical units dominate the geometry.
+I checked that the 614 training and 154 holdout indices are disjoint. I compared the saved medians to the training medians and checked that the scaler's means match the imputed training matrix. During cross-validation, each fold fits its own preprocessing and classifier.
 
-### Where does the scaler fit?
+### Interviewer. What does scaling do for the SVM?
 
-On training rows only. The audit verified the sample count, training means, disjoint split and predictions. Test data is transformed with those fitted statistics. No scaling leakage was found in this notebook.
+It puts measurements with different units on a comparable numerical scale. The saved training means and standard deviations also transform later records, so the classifier sees features in the same coordinate system.
 
-> Analogy: a student should prepare from training material and then sit a separate exam. Fitting preprocessing on all rows lets information from the exam influence preparation, even if labels were not explicitly used.
+### Interviewer. Is the margin a probability?
 
-### Does zero explicit missingness mean the data is complete?
+The margin is the signed linear decision score. I use it for ranking and ROC AUC. An individual risk probability would require separate calibration and validation.
 
-No. The audit found zero-coded measurements in five fields, affecting 376 rows. The benchmark's maintained documentation treats those designated zeros as missing-data issues. The notebook does not handle them. Zero pregnancy counts should not be included in the same blanket replacement rule.
+## Interpreting the result
 
-### What would a correct imputation design look like?
+### Interviewer. How did it perform?
 
-As a proposed repair, mark designated values missing, split the data, fit an imputer on training rows and apply it to held-out rows. Include it with scaling and the classifier in a Pipeline. The current notebook has no such imputer, and improved metrics must be demonstrated rather than promised.
+The model got 119 out of 154 holdout records right, or 77.27%. Predicting class 0 every time would get 64.94%. The model detected 28 out of 54 positives, giving 51.85% recall. It missed 26 positives, which matters even when overall accuracy looks reasonable.
 
-### Why use a Pipeline during cross-validation?
+### Interviewer. Work out precision and specificity.
 
-Each fold needs preprocessing fitted only on its own training partition. A Pipeline makes that sequence easier to preserve. The auditor used one for five-fold evaluation; the original notebook itself uses separate scaler/classifier objects and does not implement CV.
+Of the 37 predicted positives, 28 were true positives, so precision was 28 / 37 = 75.68%. The model correctly classified 91 of the 100 actual negatives, so specificity was 91%. Averaging specificity and recall gives 71.43% balanced accuracy.
 
-## 3. Model concepts
+### Interviewer. Did adding imputation fix the false negatives?
 
-### What does a linear SVC learn?
+The confusion matrix on the historical split stayed at 91 true negatives, 9 false positives, 26 false negatives and 28 true positives. ROC AUC increased from 0.7919 to 0.8200. AUC measures score ranking across thresholds. The false negatives remained at the default threshold.
 
-A separating hyperplane in feature space, with regularisation and tolerance for errors. Training observations called support vectors help determine the boundary. This implementation selects a linear kernel, not RBF or a deep neural network.
+### Interviewer. Why keep the original holdout?
 
-### What does C control?
+It lets me compare the repaired implementation with the earlier result on the same records. Since that split had already been examined, I describe it as a replay. Five-fold validation runs on the training portion. A separate dataset would be needed for external validation.
 
-It changes the trade-off between regularisation and training violations. A larger value penalises violations more strongly; a smaller value favours stronger regularisation. The notebook does not tune C, so do not describe a completed hyperparameter search.
+## Engineering and next steps
 
-### Is the decision function a probability?
+### Interviewer. What did the input tests cover?
 
-No. It is a classifier score useful for ranking and threshold-based evaluation. A score, a hard class and a calibrated probability are different outputs. The notebook does not establish calibrated individual disease risk.
+I tested reordered JSON fields, a missing measurement, missing and extra field names, strings, non-finite numbers, negative values, duplicate keys and a missing model file. The CLI also trains and scores in separate processes from a fresh directory.
 
-### Can feature coefficients establish causes?
+### Interviewer. Why save a pipeline?
 
-No. A fitted association in a standardised benchmark model does not establish a causal medical relationship. Interpretation also depends on preprocessing, correlated features, data quality and the population represented.
+Saving the imputer, scaler and classifier together preserves the exact transformations used in training. The validation code turns an incoming object into the expected feature frame before the saved pipeline runs.
 
-## 4. Defend the results
+### Interviewer. How would you investigate the low recall?
 
-### What were the reproduced accuracy values?
-
-Training accuracy was 78.66% and held-out accuracy was 77.27%. Always pair that with the environment, split and other metrics. The majority-class test baseline was 64.94%.
-
-### What was the confusion matrix?
-
-There were 91 true negatives, 9 false positives, 26 false negatives and 28 true positives, using class 1 as positive. Thus 119 of 154 predictions were correct, but only 28 of 54 positive records were detected.
-
-### Calculate precision, recall and specificity.
-
-Positive precision is 28 / (28 + 9) = 75.68%. Positive recall is 28 / (28 + 26) = 51.85%. Specificity is 91 / (91 + 9) = 91%. These answer different questions and should not be interchanged.
-
-### What does balanced accuracy add?
-
-It averages positive recall and specificity, giving 71.43% here. It prevents the more common negative class from dominating the summary in the same way ordinary accuracy can.
-
-### Why is 77.27% not enough for an all-clear?
-
-The model misses 26 positive test records, its setup is not reproducible as published, zero-coded measurements remain untreated and its input sequence accepts invalid values. A benchmark score is not a validated diagnostic system or proof of external generalisation.
-
-### What did five-fold validation show?
-
-The auditor's stratified folds gave mean accuracy 77.73%, with a 2.88 percentage-point fold standard deviation. Mean positive recall was 57.05%. This used the same baseline, not a tuned or imputed replacement. Fold standard deviation is not a 95% confidence interval.
-
-### What did the ten split replays establish?
-
-Changing split seeds from 0 through 9 produced accuracy from 68.83% to 79.87%. This shows sensitivity to sampling; it is not a licence to select the best split as the advertised result. A fixed seed provides reproducibility, not proof of robustness.
-
-### Does the accuracy interval prove deployment readiness?
-
-No. The audit's Wilson interval was 70.04% to 83.18% under its assumptions. It addresses test-sample uncertainty, not missing-data bias, calibration, population shift or prospective clinical utility.
-
-## 5. Input handling and engineering
-
-### What invalid inputs were rejected?
-
-The tested sequence raised library errors for wrong feature counts, non-numeric text, NaN and infinity. These are not a designed application-level validation experience; they come from the underlying libraries.
-
-### What invalid inputs still produced output?
-
-All-zero values and negative glucose, BMI, age or pregnancy count received class-0 predictions. Reversing feature order changed the example to class 1 without a schema-level error. Named fields and explicit value checks are missing.
-
-> Analogy: an eight-item form can have every box filled while the answers are in the wrong boxes. Shape validation checks the number of answers; schema validation checks their meaning and placement.
-
-### Why does inference emit a feature-name warning?
-
-The scaler was fitted with named DataFrame columns but receives an unnamed array for the example. The hard-coded original order matches, but the interface does not protect that order. Preserving validated named columns is a proposed repair.
-
-### Why save preprocessing and model together?
-
-Predictions must use the same fitted transform, feature order and classifier. Saving only the SVM can lose essential context. A versioned preprocessing/model bundle is proposed; the audited repository does not contain one.
-
-### What tests would you add first?
-
-File/schema loading, split separation, training-only fit, designated missing-value behavior, named feature order, malformed-input handling and save/load prediction consistency. Add metric reporting and dependency checks. These are a plan, not an existing passing suite.
-
-### What is the other notebook?
-
-A plant-image project requiring private Drive folders. Its execution could not reach training. Its fit call reuses the training generator as validation, which is a separate validation defect. Do not use its plots to support diabetes performance claims.
-
-## 6. Explain the next step without exaggeration
-
-### Would you immediately add XGBoost or deep learning?
-
-First repair reproducibility, validation, missing-measurement handling and evaluation. A later comparison should use consistent splits, leakage-safe preprocessing and declared objectives. More complex model names do not resolve the current engineering defects.
-
-### How would you investigate the false negatives?
-
-Inspect errors by available feature ranges and missingness, then compare models or thresholds using training/validation data. Keep the final holdout separate. Threshold changes can trade recall against precision and specificity; a desired benefit must be measured with an appropriate objective.
-
-### What should you say about clinical use?
-
-The repository demonstrates classification on a small benchmark. It does not contain prospective validation, an approved clinical workflow or established calibrated risk. Report the measured model behavior without presenting outputs as diagnoses.
-
-### What can you safely put on a resume?
-
-A basic stratified, standardised linear-SVM experiment with a reproducible 77.27% holdout score under the stated compatible environment. Do not claim deployed infrastructure, completed imputation, CNN-based diabetes detection, a calibrated risk service or a high-recall system.
-
-## Practice
-
-Sketch split/fit/transform order; calculate all four confusion-matrix metrics; explain the filename and pandas failures; distinguish zeros from missingness; and explain a hard label versus a decision score versus a calibrated probability.
+I would set the target trade-off on development data, compare precision and recall across thresholds and check performance by missing-measurement pattern. I would then evaluate the selected rule on independent data. The current score is a small benchmark result with substantial missed positives.
 
 ## Sources
 
-- [Reviewed code](https://github.com/Swapnil-byte-798/Diabetes-prediction-System/tree/f2786e3d5783860d6b40dcec534b5f99037b3f17)
-- [SVC](https://scikit-learn.org/stable/modules/generated/sklearn.svm.SVC.html)
-- [Pipeline](https://scikit-learn.org/stable/modules/generated/sklearn.pipeline.Pipeline.html)
-- [Benchmark notes](https://search.r-project.org/CRAN/refmans/mlbench/html/PimaIndiansDiabetes.html)
+- [Execution audit](verification.md)
+- [Architecture guide](how-it-works.md)

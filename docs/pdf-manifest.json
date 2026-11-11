@@ -3,24 +3,24 @@
     "project": "diabetes",
     "source": "how-it-works.md",
     "pdf": "Diabetes-How-It-Works.pdf",
-    "pages": 5,
-    "words": 1591,
-    "sha256": "1f3f0119fdff7384c3e00585d4ea9ab4d4d9bb4735d9a82f4274e5ca13d892d3"
+    "pages": 2,
+    "words": 675,
+    "sha256": "661569b2c9c451ba37ba5e13d3f5db516f7aefd14cd75d0b7d66d3aec5dba4d3"
   },
   {
     "project": "diabetes",
     "source": "interview-questions.md",
     "pdf": "Diabetes-Interview-Questions.pdf",
-    "pages": 4,
-    "words": 1491,
-    "sha256": "44debe15d2192be306bee2eeada63334a23a27f0598189a55dd0d0b052aad65d"
+    "pages": 2,
+    "words": 726,
+    "sha256": "04753981d9b2631a16c1b6d567ae2271cec92f46b158f73fe399c9829113b41e"
   },
   {
     "project": "diabetes",
     "source": "tools-primer.md",
     "pdf": "Diabetes-Tools-Primer.pdf",
-    "pages": 3,
-    "words": 1156,
-    "sha256": "9db21e9a5be406a7e084d81ed2742d04e99226e53ca1e0b6a0c8687546c84436"
+    "pages": 2,
+    "words": 694,
+    "sha256": "e2374eeaa62fce1d989f291e362fc65abdc5a013f9b706b9483cd04024039ef0"
   }
 ]

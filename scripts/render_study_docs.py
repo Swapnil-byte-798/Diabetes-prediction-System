@@ -139,7 +139,7 @@ class NumberedCanvas(Canvas):
             self.__dict__.update(state)
             self.setStrokeColor(BORDER);self.line(LEFT,36,WIDTH-RIGHT,36)
             self.setFont('Study',8);self.setFillColor(MUTED)
-            self.drawString(LEFT,23,'Study notes | Updated 29 October 2026')
+            self.drawString(LEFT,23,'Study notes | Updated 11 November 2026')
             self.drawRightString(WIDTH-RIGHT,23,f'{self._pageNumber} / {total}')
             super().showPage()
         super().save()

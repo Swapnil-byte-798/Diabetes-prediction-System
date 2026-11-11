@@ -1,36 +1,43 @@
 # Diabetes Prediction System
 
-A basic tabular classification notebook using a stratified split, training-only standardisation and a linear SVC. The audit reproduced its recorded 77.27% held-out accuracy under a compatible environment and filename workaround. Positive recall was 51.85%: 26 of 54 positive test records were missed.
+A reproducible Python benchmark for binary classification on the bundled 768-row Pima diabetes dataset. The model uses median imputation, standardisation and a linear support vector classifier. The command line and notebook share the same implementation.
 
-## Study material
+## Run from a fresh checkout
 
-The [documentation index](docs/README.md) links current Markdown and PDF architecture notes, interview questions and a tool primer. They include worked metrics, analogies, measured results and unresolved defects. This documentation update does not change the modelling code.
+Use Python 3.12. In PowerShell, replace the activation line with `.venv\Scripts\Activate.ps1`.
 
-## Current execution status
+```bash
+python -m venv .venv
+source .venv/bin/activate
+python -m pip install -r requirements.txt
+python diabetes.py train
+python diabetes.py predict examples/record.json
+```
 
-- `Diabetes.ipynb` requests `diabetes.csv`, but the committed `diabetes.xls` is CSV text with a different filename.
-- With a temporary identical-byte filename alias, pandas 3.1.0 then rejects `drop(columns='Outcome', axis=1)`.
-- The unchanged code completed with Python 3.12.14, pandas 2.2.3, NumPy 2.2.6, scikit-learn 1.9.1 and SciPy 1.18.1. The repository has no declared runtime dependency manifest.
-- Training-only scaling was verified; no scaling leakage was found in this notebook.
-- Zero-coded missing measurements and invalid numeric inputs remain untreated. There is no saved diabetes-model bundle or serving entrypoint.
+Training prints the dataset hash, fold metrics and holdout metrics as JSON and saves the fitted imputer, scaler and classifier in `artifacts/diabetes.joblib`. Training again replaces the artifact at the selected path. Use `--model` to retain a separate run, and load model files from a trusted source.
 
-To study the compatible baseline, use an isolated environment with the recorded versions and a temporary `diabetes.csv` copy of the supplied CSV text. These are explicit workarounds, not fixes applied by this documentation commit.
+Prediction accepts one JSON object with the eight names shown in the example. Use `null` or the dataset's zero code for a missing Glucose, BloodPressure, SkinThickness, Insulin or BMI measurement. Supply at least one of those measurements. A pregnancy count of zero is valid. Class 1 denotes the positive benchmark label, and the decision score is the signed SVC margin.
 
-## Audited result
+To run the tests and execute the notebook from the repository root:
 
-| Actual label | Predicted 0 | Predicted 1 |
-|---|---:|---:|
-| 0 | 91 | 9 |
-| 1 | 26 | 28 |
+```bash
+python -m pip install -r requirements-dev.txt
+python -m pytest -q
+jupyter execute --timeout=60 Diabetes.ipynb
+```
 
-The split contains 614 training and 154 test rows. Accuracy is 77.27%, positive precision 75.68%, positive recall 51.85% and balanced accuracy 71.43%. Auditor-added five-fold evaluation averaged 77.73% accuracy and 57.05% recall; it is not evaluation already implemented in the notebook.
+## Verified results
 
-The data is a small benchmark. Its hard labels are not validated diagnoses or calibrated individual risk. Jupyter kernel sockets were blocked in the audit workspace, so the actual cell source was executed directly as Python; notebook-kernel/UI execution was not verified.
+| Metric | 154-record holdout |
+|---|---:|
+| Accuracy | 77.27% (119/154) |
+| Majority baseline accuracy | 64.94% (100/154) |
+| Balanced accuracy | 71.43% |
+| Positive recall | 51.85% (28/54) |
+| ROC AUC | 0.8200 |
 
-## Other notebook
+The original split is preserved for comparison. The repaired pipeline missed 26 of 54 positives. Five-fold cross-validation within the 614 training rows averaged 77.04% accuracy and 56.09% positive recall. These are benchmark results. External clinical validity and individual risk calibration have not been established.
 
-`project2_capstone.ipynb` is an unrelated plant-image project. It needs private Google Drive data absent from the repository and its fit call reuses the training generator as validation. Its saved plots are not diabetes performance evidence.
+The filename was corrected with identical data bytes. The [dataset reference](https://search.r-project.org/CRAN/refmans/mlbench/html/PimaIndiansDiabetes.html) documents the five zero-coded measurements. The [audit](docs/verification.md) records the hash and execution results, and the [study material](docs/README.md) explains the workflow and interview questions.
 
-## Next engineering work
-
-Fix file/dependency setup, simplify the drop call, add named feature validation and training-only missing-data handling, persist preprocessing with the classifier, and add repeatable tests. These remain proposals, not completed features.
+The separate plant-image notebook is preserved in `archive/`. It depends on private Drive data and has its own unresolved validation split.
